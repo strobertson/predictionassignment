@@ -13,7 +13,7 @@ output:
 
 ## Synopsis
 
-The purpose of this paper is to document the development of a machine learning model that can categorise workout meassurements into one of 5 groups. As part of the development this will include testing a number of models and identifying the one with the lowest potential out of sample error.
+The purpose of this paper is to document the development of a machine learning model that can categories workout measurements into one of 5 groups. As part of the development this will include testing a number of models and identifying the one with the lowest potential out of sample error.
 
 ## Environment prep
 
@@ -222,7 +222,7 @@ str(training_mod)
 ##  $ classe              : Factor w/ 5 levels "A","B","C","D",..: 1 1 1 1 1 1 1 1 1 1 ...
 ```
 
-Of the remaining data, columns 1-6 contain qualitative data about the exercise as opposed to meassurements of the exercise. These can be dropped for the purposed of model building to leave 1 outcome and 52 predictor variables in our data set. 
+Of the remaining data, columns 1-6 contain qualitative data about the exercise as opposed to measurements of the exercise. These can be dropped for the purposed of model building to leave 1 outcome and 52 predictor variables in our data set. 
 
 To ensure accuracy later we also apply these transformations to the test data set and produce a table to check that they still have the same dimensions.
 
@@ -275,9 +275,9 @@ kable(dim_mod) %>%
 
 Now that we have reduced the dimension in the data set we can start work on building our prediction algorithms. The size of the testing set provided is small, only 20 observations, and due to the role of this data in testing the final model we will not use this to develop the model.
 
-In order to perform accuracte development we will further split the training data set by spliting it into a training and validation set. As we have a large number of self contained events we will perform a 60/40 split which will ensure represtive samples.
+In order to perform accurate development we will further split the training data set by splitting it into a training and validation set. As we have a large number of self contained events we will perform a 60/40 split which will ensure representative samples.
 
-We will also create a training control value to use in our future model building. This contol will be used in all subsequent models so that they perform 5 fold cross validation as part of the model build.
+We will also create a training control value to use in our future model building. This control will be used in all subsequent models so that they perform 5 fold cross validation as part of the model build.
 
 
 ```r
@@ -320,7 +320,7 @@ kable(dim_split) %>%
 </tbody>
 </table>
 
-We also create plots to show the distrbution of the predictor classe in the training and validation sets to ensure they are representative.
+We also create plots to show the distribution of the predictor classe in the training and validation sets to ensure they are representative.
 
 
 ```r
@@ -428,9 +428,9 @@ matrix_rpart
 ## Balanced Accuracy      0.7193  0.67693  0.60706       NA  0.94063
 ```
 
-The accuracy acheived from this model is only 50.3% which is very low. 
+The accuracy achieved from this model is only 50.3% which is very low. 
 
-If we visualise the model using rattle we can also see that with the current random seed the model is unable to predict all classes. 
+If we visualize the model using rattle we can also see that with the current random seed the model is unable to predict all classes. 
 
 
 ```r
@@ -440,11 +440,11 @@ figure3 <- fancyRpartPlot(model_rpart$finalModel)
 
 ![](figure/rattle_plot-1.png)<!-- -->
 
-Based on these results a decision tree on its own is not a good algorithm to use. As such we will need to try another alogrithm, in this case random forest.
+Based on these results a decision tree on its own is not a good algorithm to use. As such we will need to try another algorithm, in this case random forest.
 
 ## Random Forest
 
-Random forests use layred decision trees to identify the optimal branches for prediction. As such we should expect to see a good increase in accuracy over the standard decision tree model.
+Random forests use layered decision trees to identify the optimal branches for prediction. As such we should expect to see a good increase in accuracy over the standard decision tree model.
 
 
 ```r
@@ -521,7 +521,7 @@ matrix_rf
 ## Balanced Accuracy      0.9988   0.9944   0.9883   0.9944   0.9991
 ```
 
-With the shift to random forest algorithm the accuracy has increased to 99.2%, with an expected OOB error rate of 0.83%. As this is less than 1% I am happy to proceed with this as mu predction model.
+With the shift to random forest algorithm the accuracy has increased to 99.2%, with an expected OOB error rate of 0.83%. As this is less than 1% I am happy to proceed with this as mu prediction model.
 
 ## Predictions
 
