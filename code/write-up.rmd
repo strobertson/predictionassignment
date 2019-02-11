@@ -5,6 +5,7 @@ date: "11 February 2019"
 output:
   pdf_document: default
   html_document: default
+  md_document: default
 ---
 
 *os: macOS 10.14.2*  
