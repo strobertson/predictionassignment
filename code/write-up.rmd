@@ -1,0 +1,288 @@
+---
+title: "Machine Learning Model Development"
+author: "Scott Robertson"
+date: "11 February 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+*os: macOS 10.14.2*  
+*r version: 3.5.1*  
+*required packages: readr, caret, knitr, kableExtra, rattle, rpart.plot, ggplot2, ggpubr*   
+
+## Synopsis
+
+The purpose of this paper is to document the development of a machine learning model that can categorise workout meassurements into one of 5 groups. As part of the development this will include testing a number of models and identifying the one with the lowest potential out of sample error.
+
+## Environment prep
+
+```{r environment_prep, warning=FALSE, message=FALSE}
+# Installing required packages if not avaliable
+if("readr" %in% rownames(installed.packages()) == FALSE){
+      install.packages("readr")
+}
+if("caret" %in% rownames(installed.packages()) == FALSE){
+      install.packages("caret")
+}
+if("knitr" %in% rownames(installed.packages()) == FALSE){
+      install.packages("knitr")
+}
+if("kableExtra" %in% rownames(installed.packages()) == FALSE){
+      install.packages("kableExtra")
+}
+if("rattle" %in% rownames(installed.packages()) == FALSE){
+      install.packages("rattle")
+}
+if("rpart.plot" %in% rownames(installed.packages()) == FALSE){
+      install.packages("rpart.plot")
+}
+if("ggplot2" %in% rownames(installed.packages()) == FALSE){
+      install.packages("ggplot2")
+}
+if("ggpubr" %in% rownames(installed.packages()) == FALSE){
+      install.packages("ggpubr")
+}
+
+# Load the nessecary packages into environment
+library(readr)
+library(caret)
+library(knitr)
+library(kableExtra)
+library(rattle)
+library(rpart.plot)
+library(ggplot2)
+library(ggpubr)
+
+# Set global parameters
+set.seed(42)
+theme_set(theme_bw())
+
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har 
+
+## Study data
+
+[Write summary of data source]
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
+
+```{r data_download, warning=FALSE, message=FALSE, cache=TRUE}
+# Create "data" folder within working directory to store information if not already avaliable
+if (!file.exists("data")) {
+      dir.create("data")
+}
+
+# Set URL to download files from
+trainUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+# Download files to data folder
+download.file(trainUrl, "./data/training.csv")
+download.file(testUrl, "./data/test.csv")
+
+# Store date of download in a value
+dateDownloaded <- Sys.time()
+
+# Load data into environment
+training <- read.csv("./data/training.csv", header = TRUE, sep = ",", na.strings = c("NA","",'#DIV/0!'))
+test <- read.csv("./data/test.csv", header = TRUE, sep = ",", na.strings = c("NA","",'#DIV/0!'))
+
+# Create a summary table for the dimensions of the training and test set
+dim_raw <- data.frame(
+  Dataset = c("Training", "Test"),
+  Observations = c(dim(training)[1], dim(test)[1]),
+  Variables =c(dim(training)[2], dim(test)[2])
+)
+
+# Print dim table as a kable object
+kable(dim_raw) %>%
+  kable_styling(bootstrap_options = "bordered", full_width = F)
+
+```
+
+
+## Cleaning the data
+
+The training data that we have imported currently has 160 columns and 19622 observations. This is a large number of possible coefficients so we will need to do some cleaning to reduce the number. 
+
+To start with we remove any columns that are more than 60% NAs or blank and any columns that have near zero variance. The contents of these columns will not have much of an impact on our predictions so can removed.
+
+```{r data_clean_1, warning=FALSE, message=FALSE, cache=TRUE}
+# Remove blank or NA columns
+training_mod <- training[, colSums(is.na(training)) == 0] 
+
+# Identify any columns with near zero variance
+var_training <- nearZeroVar(training_mod, saveMetrics=TRUE)
+training_mod <- training_mod[,var_training$nzv==FALSE]
+
+# Remove qualitative columns
+training_mod <- training_mod[,-(1:6)]
+
+# Check the structure and dimension of remaining data
+dim(training_mod)
+str(training_mod)
+```
+
+Of the remaining data, columns 1-6 contain qualitative data about the exercise as opposed to meassurements of the exercise. These can be dropped for the purposed of model building to leave 1 outcome and 52 predictor variables in our data set. 
+
+To ensure accuracy later we also apply these transformations to the test data set and produce a table to check that they still have the same dimensions.
+
+```{r data_clean_2, warning=FALSE, message=FALSE, cache=TRUE}
+# Perform transformations on test data set
+test_mod <- test[, colSums(is.na(test)) == 0] 
+
+var_test <- nearZeroVar(test_mod, saveMetrics=TRUE)
+test_mod <- test_mod[,var_test$nzv==FALSE]
+
+test_mod <- test_mod[,-(1:6)]
+
+# Create a summary table for the dimensions of the training and test set
+dim_mod <- data.frame(
+  Dataset = c("Training Mod", "Test Mod"),
+  Observations = c(dim(training_mod)[1], dim(test_mod)[1]),
+  Variables =c(dim(training_mod)[2], dim(test_mod)[2])
+)
+
+# Print dim table as a kable object
+kable(dim_mod) %>%
+  kable_styling(bootstrap_options = "bordered", full_width = F)
+```
+
+
+## Preparing data for model building
+
+Now that we have reduced the dimension in the data set we can start work on building our prediction algorithms. The size of the testing set provided is small, only 20 observations, and due to the role of this data in testing the final model we will not use this to develop the model.
+
+In order to perform accuracte development we will further split the training data set by spliting it into a training and validation set. As we have a large number of self contained events we will perform a 60/40 split which will ensure represtive samples.
+
+We will also create a training control value to use in our future model building. This contol will be used in all subsequent models so that they perform 5 fold cross validation as part of the model build.
+
+```{r cross_validation, warning=FALSE, message=FALSE, cache=TRUE}
+# Use create data partition to split the training data set
+split <- createDataPartition(training_mod$classe, p=0.6, list=FALSE)
+training_split <- training_mod[split,]
+validation_split <- training_mod[-split,]
+
+# Create a summary table for the dimensions of the training and test set
+dim_split <- data.frame(
+  Dataset = c("Training Split", "Validation Split"),
+  Observations = c(dim(training_split)[1], dim(validation_split)[1]),
+  Variables =c(dim(training_split)[2], dim(validation_split)[2])
+)
+
+# Print dim table as a kable object
+kable(dim_split) %>%
+  kable_styling(bootstrap_options = "bordered", full_width = F)
+```
+
+We also create plots to show the distrbution of the predictor classe in the training and validation sets to ensure they are representative.
+
+```{r outcome_dist, warning=FALSE, message=FALSE, fig.path='figure/'}
+# Print comparator graph to ensure even distrbution of class
+figure1 <- ggplot(aes(x = classe), data = training_split) +
+                          geom_bar() +
+                          labs(x = "Outcome - classe",
+                               y = "Number in split",
+                               title = "training_split - outcome variable distribution")
+
+figure2 <- ggplot(aes(x = classe), data = validation_split) +
+                          geom_bar() +
+                          labs(x = "Outcome - classe",
+                               y = "Number in split",
+                               title = "validation_split - outcome variable distribution")
+
+ggarrange(figure1, figure2, ncol=2, nrow=1)
+```
+
+Now that we are happy that the training and validation sets are ready we create a control item so that we can ensure that future models use cross-validation during the training phase.
+
+```{r control}
+# Create a training control function for model development
+control <- trainControl(method = "cv", number = 5, verboseIter = F)
+```
+
+## Decision tree
+
+The first model we will try is a decision tree. As covered in the training material it is best to start with a simple method and then build from there.
+
+```{r decision_tree, warning=FALSE, message=FALSE, cache=TRUE}
+# Train decision tree model
+model_rpart <- train(classe ~ .,
+                data = training_split,
+                method = "rpart",
+                trControl = control)
+
+# Print out the details of the model
+print(model_rpart$finalModel, digits=3)
+
+# Predict on validation data
+predict_rpart <- predict(model_rpart, validation_split)
+
+# Create confusion matrix to compare predicted values to actual values
+matrix_rpart <- confusionMatrix(validation_split$classe, predict_rpart)
+
+# Print the outcome of the predictions on validation data
+matrix_rpart
+
+```
+
+The accuracy acheived from this model is only 50.3% which is very low. 
+
+If we visualise the model using rattle we can also see that with the current random seed the model is unable to predict all classes. 
+
+```{r rattle_plot, message=FALSE, warning=FALSE, cache=TRUE, fig.path='figure/'}
+# Create rattle plot for final model
+figure3 <- fancyRpartPlot(model_rpart$finalModel)
+
+```
+
+Based on these results a decision tree on its own is not a good algorithm to use. As such we will need to try another alogrithm, in this case random forest.
+
+## Random Forest
+
+Random forests use layred decision trees to identify the optimal branches for prediction. As such we should expect to see a good increase in accuracy over the standard decision tree model.
+
+```{r random_forest, warning=FALSE, message=FALSE, cache=TRUE}
+# Train random forest model
+model_rf <- train(classe ~.,
+                data = training_split,
+                method = "rf", 
+                trControl = control)
+
+# Print out model summary
+print(model_rf$finalModel, digits=3)
+
+# Predict on validation set
+predict_rf <- predict(model_rf, validation_split)
+
+# Create confusion matric to compare predicted labels to actual labels
+matrix_rf <- confusionMatrix(validation_split$classe, predict_rf)
+
+# Print the outcome based on validation prediction
+matrix_rf
+```
+
+With the shift to random forest algorithm the accuracy has increased to 99.2%, with an expected OOB error rate of 0.83%. As this is less than 1% I am happy to proceed with this as mu predction model.
+
+## Predictions
+
+Now that we have our algorithm we can use this on the test set to get our answers for the quiz section of the assignment.
+
+```{r final_predictions}
+
+test <- predict(model_rf, test_mod)
+
+print(test)
+```

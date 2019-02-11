@@ -1,0 +1,12 @@
+base
+readr
+lattice
+ggplot2
+caret
+knitr
+kableExtra
+rattle
+rpart
+rpart.plot
+magrittr
+ggpubr
